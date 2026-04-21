@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
-  actionAddEmployee,
   actionListAttendance,
   actionListEmployees,
   actionRecordAttendance,
 } from "@/app/(main)/job/hr/actions";
-import type { AttendanceRow, EmployeeRow } from "@/lib/job-samples/data";
+import type { AttendanceRow } from "@/lib/job-samples/data";
+
+type EmployeeDirectoryRow = {
+  user_id: number;
+  name: string;
+  job_roles: string;
+};
 
 function can(
   permissions: string[],
@@ -18,17 +23,28 @@ function can(
 }
 
 export function HrJobPanels({ permissions }: { permissions: string[] }) {
-  const [employees, setEmployees] = useState<EmployeeRow[] | null>(null);
+  const [employees, setEmployees] = useState<EmployeeDirectoryRow[] | null>(null);
   const [attendance, setAttendance] = useState<AttendanceRow[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [empName, setEmpName] = useState("Taylor Kim");
-  const [empRole, setEmpRole] = useState("Designer");
   const [attEmployee, setAttEmployee] = useState("Jordan Lee");
   const [attStatus, setAttStatus] = useState("Present");
 
   const c = (m: string, a: string) => can(permissions, m, a);
+  const canViewEmployees = c("hr.employees", "view");
+
+  useEffect(() => {
+    if (!canViewEmployees) return;
+    startTransition(async () => {
+      const r = await actionListEmployees();
+      if (r.ok) {
+        setEmployees(r.data.rows);
+      } else {
+        setErr(r.error);
+      }
+    });
+  }, [canViewEmployees]);
 
   return (
     <div className="space-y-10">
@@ -46,11 +62,10 @@ export function HrJobPanels({ permissions }: { permissions: string[] }) {
       <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
         <h2 className="text-lg font-medium text-zinc-200">Employees</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Keys: <code className="text-zinc-400">hr.employees:view</code>,{" "}
-          <code className="text-zinc-400">hr.employees:create</code>
+          Key: <code className="text-zinc-400">hr.employees:view</code>
         </p>
         <div className="mt-4 flex flex-wrap items-end gap-2">
-          {c("hr.employees", "view") ? (
+          {canViewEmployees ? (
             <button
               type="button"
               disabled={pending}
@@ -67,62 +82,25 @@ export function HrJobPanels({ permissions }: { permissions: string[] }) {
               }}
               className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
             >
-              Load sample employees
+              Refresh employees
             </button>
           ) : (
             <p className="text-sm text-zinc-500">No view access.</p>
           )}
-          {c("hr.employees", "create") ? (
-            <>
-              <input
-                className="rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm"
-                value={empName}
-                onChange={(e) => setEmpName(e.target.value)}
-                placeholder="Name"
-              />
-              <input
-                className="rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm"
-                value={empRole}
-                onChange={(e) => setEmpRole(e.target.value)}
-                placeholder="Role"
-              />
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => {
-                  setErr(null);
-                  setMsg(null);
-                  startTransition(async () => {
-                    const r = await actionAddEmployee(empName, empRole);
-                    if (r.ok) {
-                      setMsg(`Sample employee created: ${r.data.id} (audit).`);
-                    } else setErr(r.error);
-                  });
-                }}
-                className="rounded-md bg-amber-500/90 px-3 py-1.5 text-sm font-medium text-zinc-950 hover:bg-amber-400 disabled:opacity-50"
-              >
-                Add demo employee
-              </button>
-            </>
-          ) : null}
         </div>
         {employees ? (
           <table className="mt-4 w-full text-left text-sm">
             <thead className="text-zinc-500">
               <tr>
-                <th className="py-2 pr-4">ID</th>
                 <th className="py-2 pr-4">Name</th>
-                <th className="py-2 pr-4">Role</th>
-                <th className="py-2">Office</th>
+                <th className="py-2">Job role</th>
               </tr>
             </thead>
             <tbody className="text-zinc-300">
               {employees.map((e) => (
-                <tr key={e.id} className="border-t border-zinc-800">
-                  <td className="py-2 font-mono text-xs">{e.id}</td>
+                <tr key={e.user_id} className="border-t border-zinc-800">
                   <td className="py-2">{e.name}</td>
-                  <td className="py-2">{e.role}</td>
-                  <td className="py-2">{e.office}</td>
+                  <td className="py-2">{e.job_roles}</td>
                 </tr>
               ))}
             </tbody>

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RBAC Console",
-  description: "Role-based access control demo",
+  title: "DATSEC2 Finals",
+  description: "DATSEC2 Finals: Role-based access control demo",
 };
 
 export default function RootLayout({
